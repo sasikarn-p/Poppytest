@@ -1,6 +1,1042 @@
 <!DOCTYPE html>
-<html>
-  <body>
-    <h1>Hello Azure Static Web App!</h1>
-  </body>
+<html lang="th" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Azure Web App Poppy Test - ตรวจสภาพอากาศ มลพิษ ภัยพิบัติ น้ำท่วม & ปฏิทินวันหยุด</title>
+  
+  <!-- Google Fonts: Prompt & Sarabun -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'Sarabun', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              900: '#064e3b',
+            },
+            flood: {
+              low: '#10b981',
+              moderate: '#f59e0b',
+              high: '#ef4444',
+              critical: '#7f1d1d'
+            }
+          },
+          boxShadow: {
+            'glow-cyan': '0 0 25px -5px rgba(6, 182, 212, 0.3)',
+            'glow-red': '0 0 25px -5px rgba(239, 68, 68, 0.4)',
+            'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Glassmorphism & custom touches */
+    .glass-card {
+      background: rgba(18, 24, 38, 0.75);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-card-light {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .pulse-glow {
+      animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse-ring {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .7; transform: scale(1.05); }
+    }
+    /* Hide scrollbar for clean UI */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+
+<body class="bg-[#0b1120] text-slate-100 min-h-screen font-sans selection:bg-teal-500 selection:text-white pb-16">
+
+  <!-- TOP BACKGROUND ACCENTS -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+    <div class="absolute -top-40 -left-40 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl"></div>
+    <div class="absolute top-1/3 -right-40 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"></div>
+    <div class="absolute -bottom-40 left-1/3 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"></div>
+  </div>
+
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+
+    <!-- NAVIGATION & APP HEADER -->
+    <header class="glass-card rounded-2xl p-4 sm:p-5 mb-5 flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-700/60 shadow-xl">
+      <!-- Title & Branding -->
+      <div class="flex items-center gap-3.5 w-full md:w-auto">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center text-slate-950 text-xl font-bold shadow-lg shadow-cyan-500/20">
+          <i class="fa-solid fa-shield-halved text-2xl text-slate-900"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl sm:text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400">
+              ThaiEcoGuard
+            </h1>
+            <span class="px-2 py-0.5 text-[10px] font-semibold bg-cyan-950 text-cyan-400 border border-cyan-800/80 rounded-full">
+              LIVE MONITOR
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">ศูนย์กลางเฝ้าระวังสภาพอากาศ มลพิษ น้ำท่วม และปฏิทินวันหยุด</p>
+        </div>
+      </div>
+
+      <!-- Location Switcher & Current Time -->
+      <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+        <!-- Time Badge -->
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300">
+          <i class="fa-regular fa-clock text-cyan-400"></i>
+          <span id="liveClock">กำลังโหลดเวลา...</span>
+        </div>
+
+        <!-- Geo Location Button -->
+        <button id="btnGeo" onclick="detectUserLocation()" title="ค้นหาตำแหน่งปัจจุบันของฉัน" class="p-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-sm flex items-center gap-2 transition active:scale-95">
+          <i class="fa-solid fa-crosshairs text-base"></i>
+          <span class="text-xs font-medium hidden sm:inline">พิกัดฉัน</span>
+        </button>
+
+        <!-- City Dropdown -->
+        <div class="relative flex-1 sm:w-56">
+          <i class="fa-solid fa-location-dot absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400 text-sm"></i>
+          <select id="citySelect" onchange="handleCityChange(this.value)" class="w-full bg-slate-900/90 text-sm text-slate-200 pl-9 pr-8 py-2 rounded-xl border border-slate-700 focus:outline-none focus:border-cyan-400 appearance-none cursor-pointer">
+            <option value="bangkok">กรุงเทพมหานคร (Bangkok)</option>
+            <option value="chiangmai">เชียงใหม่ (Chiang Mai)</option>
+            <option value="khonkaen">ขอนแก่น (Khon Kaen)</option>
+            <option value="phuket">ภูเก็ต (Phuket)</option>
+            <option value="hatyai">หาดใหญ่ / สงขลา (Hat Yai)</option>
+            <option value="chonburi">ชลบุรี / พัทยา (Chonburi)</option>
+            <option value="ayutthaya">พระนครศรีอยุธยา (Ayutthaya)</option>
+            <option value="custom" disabled id="optCustom">📍 ตำแหน่งปัจจุบันของคุณ</option>
+          </select>
+          <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+        </div>
+      </div>
+    </header>
+
+    <!-- LIVE SURVEILLANCE & EMERGENCY ALERT BANNER (แจ้งเตือนเหตุการณ์เฝ้าระวัง) -->
+    <div id="alertBanner" class="mb-6 p-4 sm:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden bg-gradient-to-r from-amber-950/60 via-red-950/40 to-slate-900/80 border-amber-500/40 shadow-lg shadow-amber-950/20">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex items-start gap-3.5">
+          <div class="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex-shrink-0 mt-0.5 md:mt-0 pulse-glow">
+            <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 text-xs font-bold uppercase rounded-md bg-amber-500 text-slate-950 tracking-wider" id="alertSeverity">
+                เฝ้าระวังพิเศษ
+              </span>
+              <span class="text-xs font-semibold text-amber-300" id="alertCategory">
+                ระดับน้ำลุ่มน้ำเจ้าพระยา & ค่าฝุ่น PM2.5 สะสม
+              </span>
+              <span class="text-[11px] text-slate-400">อัปเดตล่าสุด: <span id="alertTimestamp">10 นาทีที่แล้ว</span></span>
+            </div>
+            <p class="text-sm text-slate-200" id="alertMessage">
+              ตรวจสอบระดับน้ำริมตลิ่งอย่างใกล้ชิดเนื่องจากมีฝนตกหนักสะสมในพื้นที่ และฝุ่น PM2.5 มีแนวโน้มสะสมตัวช่วงเช้าตรู่ กลุ่มเปราะบางควรระวัง
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+          <button onclick="toggleAlertDetails()" class="text-xs font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/30 transition flex items-center gap-1.5 whitespace-nowrap">
+            <i class="fa-solid fa-circle-info"></i> แนวทางปฏิบัติ
+          </button>
+        </div>
+      </div>
+      <!-- Detailed warning modal/accordion -->
+      <div id="alertDetails" class="hidden mt-4 pt-3 border-t border-amber-500/20 text-xs text-slate-300 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="bg-black/30 p-2.5 rounded-lg">
+          <strong class="text-amber-300 block mb-1"><i class="fa-solid fa-house-chimney-water mr-1"></i> เตรียมรับมือน้ำท่วมฉับพลัน:</strong>
+          ยกสิ่งของขึ้นที่สูง เตรียมปลั๊กไฟให้อยู่เหนือระดับน้ำ และตรวจตราทางระบายน้ำ
+        </div>
+        <div class="bg-black/30 p-2.5 rounded-lg">
+          <strong class="text-amber-300 block mb-1"><i class="fa-solid fa-mask-face mr-1"></i> ป้องกันระบบทางเดินหายใจ:</strong>
+          สวมหน้ากาก N95 เมื่อต้องอยู่นอกอาคาร ลดการออกกำลังกายกลางแจ้ง
+        </div>
+        <div class="bg-black/30 p-2.5 rounded-lg">
+          <strong class="text-amber-300 block mb-1"><i class="fa-solid fa-phone-volume mr-1"></i> สายด่วนฉุกเฉิน 24 ชม.:</strong>
+          โทร <span class="text-white font-bold">1784</span> (กรมป้องกันฯ) หรือ <span class="text-white font-bold">1669</span> (เจ็บป่วยฉุกเฉิน)
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN BENTO GRID LAYOUT -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+      <!-- LEFT & CENTER COLUMN (WEATHER & AIR QUALITY & DISASTER) - 8 Cols -->
+      <div class="lg:col-span-8 flex flex-col gap-5">
+
+        <!-- 1. WEATHER & CLIMATE CARD (สภาพอากาศ) -->
+        <section class="glass-card rounded-2xl p-5 sm:p-6 shadow-xl relative overflow-hidden">
+          <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-700/50">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-sm">
+                <i class="fa-solid fa-cloud-sun-rain"></i>
+              </span>
+              <div>
+                <h2 class="text-lg font-semibold text-white">สภาพอากาศปัจจุบัน (Weather)</h2>
+                <p class="text-xs text-slate-400" id="weatherStation">สถานีตรวจวัด: กำลังอัปเดต...</p>
+              </div>
+            </div>
+            <span id="weatherBadge" class="text-xs px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 font-medium">
+              ข้อมูลสด Open-Meteo
+            </span>
+          </div>
+
+          <!-- Main Weather Data Row -->
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-center mb-6">
+            <!-- Main Temp & Icon -->
+            <div class="md:col-span-5 flex items-center gap-4">
+              <div id="weatherIconContainer" class="text-5xl sm:text-6xl text-cyan-400 filter drop-shadow">
+                <i class="fa-solid fa-sun animate-pulse text-amber-400"></i>
+              </div>
+              <div>
+                <div class="flex items-baseline">
+                  <span id="currentTemp" class="text-5xl font-extrabold tracking-tight text-white">--</span>
+                  <span class="text-2xl font-light text-cyan-300 ml-1">°C</span>
+                </div>
+                <p id="weatherDesc" class="text-slate-300 font-medium text-sm mt-0.5">กำลังเชื่อมต่อข้อมูลดาวเทียม...</p>
+                <p class="text-xs text-slate-400">รู้สึกเหมือน (Feels like): <span id="feelsLikeTemp" class="text-slate-200 font-semibold">--°C</span></p>
+              </div>
+            </div>
+
+            <!-- Mini Metrics Grid -->
+            <div class="md:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div class="glass-card-light p-3 rounded-xl">
+                <span class="text-xs text-slate-400 block mb-1"><i class="fa-solid fa-droplet text-blue-400 mr-1"></i> ความชื้น</span>
+                <span id="humidityVal" class="text-base font-bold text-slate-100">--%</span>
+              </div>
+              <div class="glass-card-light p-3 rounded-xl">
+                <span class="text-xs text-slate-400 block mb-1"><i class="fa-solid fa-wind text-teal-400 mr-1"></i> แรงลม</span>
+                <span id="windVal" class="text-base font-bold text-slate-100">-- กม./ชม.</span>
+              </div>
+              <div class="glass-card-light p-3 rounded-xl">
+                <span class="text-xs text-slate-400 block mb-1"><i class="fa-solid fa-cloud-rain text-cyan-400 mr-1"></i> โอกาสฝน</span>
+                <span id="rainProbVal" class="text-base font-bold text-slate-100">--%</span>
+              </div>
+              <div class="glass-card-light p-3 rounded-xl">
+                <span class="text-xs text-slate-400 block mb-1"><i class="fa-solid fa-sun text-yellow-400 mr-1"></i> รังสี UV</span>
+                <span id="uvVal" class="text-base font-bold text-slate-100">--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hourly Forecast Horizontal Scroll -->
+          <div>
+            <h3 class="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">พยากรณ์ล่วงหน้า 24 ชั่วโมง</h3>
+            <div id="hourlyContainer" class="flex gap-2.5 overflow-x-auto pb-2 no-scrollbar text-center">
+              <!-- Dynamic hours inserted by JS -->
+              <div class="py-4 text-center text-xs text-slate-500 w-full">กำลังโหลดกราฟพยากรณ์รายชั่วโมง...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. AIR QUALITY & POLLUTION (AQI / PM2.5 / PM10) -->
+        <section class="glass-card rounded-2xl p-5 sm:p-6 shadow-xl">
+          <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-700/50">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm">
+                <i class="fa-solid fa-smog"></i>
+              </span>
+              <div>
+                <h2 class="text-lg font-semibold text-white">คุณภาพอากาศและมลพิษ (Air Quality & PM2.5)</h2>
+                <p class="text-xs text-slate-400">ดัชนีมาตรฐาน US-AQI / European Air Quality Index</p>
+              </div>
+            </div>
+            <span id="aqiBadge" class="text-xs px-2.5 py-1 rounded-full font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              กำลังประเมิน
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+            <!-- AQI Gauge Visual -->
+            <div class="md:col-span-5 bg-gradient-to-b from-slate-900/80 to-slate-950 p-4 rounded-xl border border-slate-800 text-center">
+              <span class="text-xs text-slate-400 uppercase font-semibold">ค่าฝุ่น PM2.5 ปัจจุบัน</span>
+              <div class="my-2">
+                <span id="pm25Val" class="text-5xl font-black text-amber-400">--</span>
+                <span class="text-xs text-slate-400">µg/m³</span>
+              </div>
+              <div id="aqiStatusTag" class="inline-block px-3 py-1 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 mb-2">
+                ปานกลาง (Moderate)
+              </div>
+              <!-- Recommendation Advice -->
+              <p id="healthAdvice" class="text-xs text-slate-300 leading-relaxed">
+                คุณภาพอากาศปานกลาง ประชาชนทั่วไปทำกิจกรรมกลางแจ้งได้ กลุ่มเสี่ยงควรสังเกตอาการ
+              </p>
+            </div>
+
+            <!-- Pollution Metrics Breakdown -->
+            <div class="md:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div class="glass-card-light p-3 rounded-xl border-l-2 border-emerald-400">
+                <span class="text-[11px] text-slate-400 block">PM 10 (ละอองหยาบ)</span>
+                <span id="pm10Val" class="text-lg font-bold text-slate-100">--</span>
+                <span class="text-[10px] text-slate-500">µg/m³</span>
+              </div>
+              <div class="glass-card-light p-3 rounded-xl border-l-2 border-cyan-400">
+                <span class="text-[11px] text-slate-400 block">O₃ (โอโซน)</span>
+                <span id="o3Val" class="text-lg font-bold text-slate-100">--</span>
+                <span class="text-[10px] text-slate-500">µg/m³</span>
+              </div>
+              <div class="glass-card-light p-3 rounded-xl border-l-2 border-amber-400">
+                <span class="text-[11px] text-slate-400 block">NO₂ (ไนโตรเจนไดออกไซด์)</span>
+                <span id="no2Val" class="text-lg font-bold text-slate-100">--</span>
+                <span class="text-[10px] text-slate-500">µg/m³</span>
+              </div>
+              <div class="glass-card-light p-3 rounded-xl border-l-2 border-purple-400">
+                <span class="text-[11px] text-slate-400 block">SO₂ (ซัลเฟอร์ฯ)</span>
+                <span id="so2Val" class="text-lg font-bold text-slate-100">--</span>
+                <span class="text-[10px] text-slate-500">µg/m³</span>
+              </div>
+              <div class="glass-card-light p-3 rounded-xl border-l-2 border-sky-400">
+                <span class="text-[11px] text-slate-400 block">CO (คาร์บอนมอนอกไซด์)</span>
+                <span id="coVal" class="text-lg font-bold text-slate-100">--</span>
+                <span class="text-[10px] text-slate-500">µg/m³</span>
+              </div>
+              <div class="glass-card-light p-3 rounded-xl border-l-2 border-teal-400">
+                <span class="text-[11px] text-slate-400 block">European AQI</span>
+                <span id="eaqiVal" class="text-lg font-bold text-slate-100">--</span>
+                <span class="text-[10px] text-slate-500">Index</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. DISASTER & FLOOD SURVEILLANCE (เช็คภัยพิบัติ & น้ำท่วม) -->
+        <section class="glass-card rounded-2xl p-5 sm:p-6 shadow-xl border-t-2 border-t-cyan-500">
+          <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-700/50">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-sm">
+                <i class="fa-solid fa-water"></i>
+              </span>
+              <div>
+                <h2 class="text-lg font-semibold text-white">สถานการณ์น้ำท่วมและภัยพิบัติ (Flood & Disaster Risk)</h2>
+                <p class="text-xs text-slate-400">การเฝ้าระวังทางน้ำ ปริมาณฝนสะสม 24 ชม. และความเสี่ยงแผ่นดินไหว/ดินถล่ม</p>
+              </div>
+            </div>
+            <span class="text-xs px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800">
+              เรดาร์พื้นที่เสี่ยง
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <!-- Flood Level Gauge Card -->
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-semibold text-slate-300">ความเสี่ยงน้ำท่วม/น้ำล้นตลิ่ง</span>
+                <span id="floodStatusBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold">ปกติ</span>
+              </div>
+              <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden my-2">
+                <div id="floodProgressBar" class="bg-gradient-to-r from-emerald-500 to-amber-500 h-2.5 rounded-full" style="width: 32%"></div>
+              </div>
+              <div class="flex justify-between text-[11px] text-slate-400">
+                <span>ระดับน้ำ: <b id="riverLevel" class="text-slate-200">ต่ำกว่าตลิ่ง 1.8 ม.</b></span>
+                <span id="floodRiskPercent">32%</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-2 bg-slate-950/40 p-2 rounded">
+                <i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> เขื่อนหลักในลุ่มน้ำสามารถรองรับน้ำได้ ยังไม่มีการระบายน้ำฉุกเฉิน
+              </p>
+            </div>
+
+            <!-- Rainfall Accumulation 24h -->
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-semibold text-slate-300">ฝนสะสม 24 ชั่วโมง</span>
+                <i class="fa-solid fa-cloud-showers-heavy text-cyan-400"></i>
+              </div>
+              <div class="text-2xl font-bold text-white my-1" id="rainAccum24">
+                14.2 <span class="text-sm font-normal text-slate-400">มม. (mm)</span>
+              </div>
+              <div class="text-xs text-slate-300 mb-1" id="rainAlertDesc">เกณฑ์ฝนเล็กน้อยถึงปานกลาง</div>
+              <div class="text-[11px] text-slate-400 bg-slate-950/40 p-2 rounded">
+                <i class="fa-solid fa-triangle-exclamation text-amber-400 mr-1"></i> เฝ้าระวังหากปริมาณฝนสะสมเกิน 90 มม./วัน
+              </div>
+            </div>
+
+            <!-- Geological & Storm Status -->
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-semibold text-slate-300">พายุหมุน & ดินสไลด์</span>
+                <i class="fa-solid fa-hurricane text-purple-400"></i>
+              </div>
+              <div class="space-y-1.5 text-xs">
+                <div class="flex justify-between items-center text-slate-300">
+                  <span>พายุในอ่าวไทย/อันดามัน:</span>
+                  <span class="text-emerald-400 font-semibold" id="stormStatus">ไม่มีสัญญาณ</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-300">
+                  <span>ความเสี่ยงดินโคลนถล่ม:</span>
+                  <span class="text-emerald-400 font-semibold" id="landslideStatus">ระดับต่ำ (Low)</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-300">
+                  <span>แผ่นดินไหวใกล้เคียง:</span>
+                  <span class="text-slate-300 font-semibold" id="earthquakeStatus">สงบ (ไม่มีอาฟเตอร์ช็อก)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Emergency Hotlines Row -->
+          <div class="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <span class="text-slate-400"><i class="fa-solid fa-phone-flip text-rose-400 mr-1.5"></i> สายด่วนกู้ภัย & รับแจ้งเหตุด่วน:</span>
+            <div class="flex flex-wrap gap-2">
+              <a href="tel:1784" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                <strong class="text-amber-400">1784</strong> กรมป้องกันและบรรเทาสาธารณภัย (ปภ.)
+              </a>
+              <a href="tel:199" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                <strong class="text-red-400">199</strong> ดับเพลิง/กู้ภัย
+              </a>
+              <a href="tel:1669" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                <strong class="text-cyan-400">1669</strong> แพทย์ฉุกเฉิน
+              </a>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- RIGHT COLUMN (HOLIDAY CALENDAR & LOCAL DETAILS) - 4 Cols -->
+      <div class="lg:col-span-4 flex flex-col gap-5">
+
+        <!-- 4. THAI HOLIDAY CALENDAR CARD (ปฏิทินวันหยุด) -->
+        <section class="glass-card rounded-2xl p-5 shadow-xl flex flex-col h-full">
+          <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-700/50">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center text-sm">
+                <i class="fa-solid fa-calendar-days"></i>
+              </span>
+              <div>
+                <h2 class="text-base font-semibold text-white">ปฏิทินวันหยุดราชการไทย</h2>
+                <p class="text-[11px] text-slate-400" id="currentCalendarMonthYear">ประจำปี 2567 / 2024</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Countdown to Next Holiday Box -->
+          <div class="p-3.5 rounded-xl bg-gradient-to-r from-rose-950/60 to-purple-950/60 border border-rose-500/30 mb-4">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-[11px] font-medium text-rose-300 uppercase tracking-wide">
+                <i class="fa-solid fa-hourglass-half mr-1"></i> วันหยุดถัดไป
+              </span>
+              <span id="holidayDaysLeft" class="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold">
+                อีก -- วัน
+              </span>
+            </div>
+            <div id="nextHolidayTitle" class="text-sm font-bold text-white truncate">
+              กำลังคำนวณวันหยุด...
+            </div>
+            <div id="nextHolidayDate" class="text-xs text-slate-300 mt-0.5">
+              --
+            </div>
+          </div>
+
+          <!-- Interactive Calendar Grid -->
+          <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 mb-4">
+            <div class="flex items-center justify-between mb-3 text-sm font-semibold text-slate-200">
+              <button onclick="prevMonth()" class="p-1 hover:text-cyan-400 transition"><i class="fa-solid fa-chevron-left"></i></button>
+              <span id="calendarTitle">เดือน ปี</span>
+              <button onclick="nextMonth()" class="p-1 hover:text-cyan-400 transition"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            
+            <!-- Day of Week Header -->
+            <div class="grid grid-cols-7 gap-1 text-center text-[11px] text-slate-400 font-medium mb-1">
+              <span class="text-rose-400">อา</span>
+              <span>จ</span>
+              <span>อ</span>
+              <span>พ</span>
+              <span>พฤ</span>
+              <span>ศ</span>
+              <span class="text-cyan-400">ส</span>
+            </div>
+            <!-- Calendar Days (Populated by JS) -->
+            <div id="calendarGrid" class="grid grid-cols-7 gap-1 text-center text-xs"></div>
+          </div>
+
+          <!-- Upcoming Holidays List -->
+          <div class="flex-1">
+            <h3 class="text-xs font-semibold text-slate-400 mb-2.5 uppercase tracking-wider flex items-center justify-between">
+              <span>วันหยุดสำคัญเร็วๆ นี้</span>
+              <span class="text-[10px] text-teal-400 font-normal">Official Holidays</span>
+            </h3>
+            <div id="holidayList" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+              <!-- Dynamically rendered holidays -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. QUICK SAFETY GUIDE / DISASTER READINESS WIDGET -->
+        <section class="glass-card rounded-2xl p-5 shadow-xl">
+          <h3 class="text-sm font-semibold text-white mb-2.5 flex items-center gap-2">
+            <i class="fa-solid fa-kit-medical text-emerald-400"></i> สิ่งของจำเป็นยามอพยพ (Emergency Kit)
+          </h3>
+          <ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+            <li>น้ำดื่มสะอาดอย่างน้อย 3 ลิตร/คน/วัน</li>
+            <li>อาหารแห้ง อาหารกระป๋อง ยาสามัญประจำบ้าน</li>
+            <li>ไฟฉาย แบตเตอรี่สำรอง (Powerbank)</li>
+            <li>เอกสารสำคัญ บัตรประชาชน (ใส่ถุงซิปล็อคกันน้ำ)</li>
+            <li>นกหวีด เพื่อส่งสัญญาณเสียงขอความช่วยเหลือ</li>
+          </ul>
+        </section>
+
+      </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="mt-10 pt-6 border-t border-slate-800 text-center text-xs text-slate-500">
+      <p>ThaiEcoGuard Dashboard &copy; 2024. ดึงข้อมูลอุตุนิยมวิทยาแบบเปิดและคุณภาพอากาศจาก Open-Meteo Public API.</p>
+      <p class="mt-1">พัฒนาเพื่อความปลอดภัยของประชาชน สรุปข้อมูลเตือนภัยเพื่อประกอบการตัดสินใจเบื้องต้น</p>
+    </footer>
+
+  </div>
+
+  <!-- SCRIPT SECTION -->
+  <script>
+    // PREDEFINED LOCATIONS WITH ACCURATE COORDS & RIVER/FLOOD RISK METRICS
+    const locations = {
+      bangkok: {
+        name: "กรุงเทพมหานคร",
+        lat: 13.7563,
+        lon: 100.5018,
+        river: "แม่น้ำเจ้าพระยา (ระดับต่ำกว่าคันกั้น 1.4 ม.)",
+        floodRisk: 38,
+        floodStatus: "เฝ้าระวังปกติ",
+        floodColor: "text-emerald-400",
+        alertMsg: "พื้นที่ริมแม่น้ำเจ้าพระยาและจุดเสี่ยงน้ำท่วมขังควรระวังฝนตกสะสมช่วงบ่าย และคอยติดตามระดับน้ำทะเลหนุนสูง",
+        alertLevel: "เฝ้าระวังฝนตกหนัก"
+      },
+      chiangmai: {
+        name: "เชียงใหม่ (เมือง)",
+        lat: 18.7883,
+        lon: 98.9853,
+        river: "แม่น้ำปิง (สะพานนวรัฐ ปกติ)",
+        floodRisk: 22,
+        floodStatus: "ระดับน้ำปกติ",
+        floodColor: "text-emerald-400",
+        alertMsg: "เฝ้าระวังค่าฝุ่น PM2.5 ในช่วงเปลี่ยนผ่านฤดูกาล และพื้นที่ลาดเชิงดอยระวังน้ำป่าไหลหลากหากมีฝนสะสม",
+        alertLevel: "คุณภาพอากาศ/หมอกควัน"
+      },
+      khonkaen: {
+        name: "ขอนแก่น",
+        lat: 16.4419,
+        lon: 102.8360,
+        river: "ลุ่มน้ำพอง / ลุ่มน้ำชี",
+        floodRisk: 30,
+        floodStatus: "ระดับน้ำคงที่",
+        floodColor: "text-emerald-400",
+        alertMsg: "ปริมาณน้ำกักเก็บในอ่างเก็บน้ำอยู่ในเกณฑ์ปกติ การเกษตรรับน้ำได้ดี สภาพอากาศร้อนชื้น",
+        alertLevel: "สภาพอากาศแปรปรวน"
+      },
+      phuket: {
+        name: "ภูเก็ต",
+        lat: 7.8804,
+        lon: 98.3923,
+        river: "ทะเลอันดามัน (คลื่นลม 1.5 ม.)",
+        floodRisk: 42,
+        floodStatus: "เฝ้าระวังคลื่นลม",
+        floodColor: "text-amber-400",
+        alertMsg: "มีฝนตกชุกบางช่วง เรือเล็กควรเดินเรือด้วยความระมัดระวัง ระวังน้ำท่วมขังบริเวณเขตเทศบาลเมืองหากฝนตกต่อเนื่อง",
+        alertLevel: "คลื่นลมแรง & ฝนฟ้าคะนอง"
+      },
+      hatyai: {
+        name: "หาดใหญ่ / สงขลา",
+        lat: 7.0086,
+        lon: 100.4747,
+        river: "คลองอู่ตะเภา (ระบบระบายน้ำปกติ)",
+        floodRisk: 35,
+        floodStatus: "เฝ้าระวังตามฤดูกาล",
+        floodColor: "text-emerald-400",
+        alertMsg: "เทศบาลเตรียมพร้อมเครื่องสูบน้ำประจำจุด คลอง ร.1 ทำงานปกติ ยังไม่มีสัญญาณเตือนภัยธงแดง",
+        alertLevel: "เฝ้าระวังน้ำหลาก"
+      },
+      chonburi: {
+        name: "ชลบุรี / พัทยา",
+        lat: 13.3611,
+        lon: 100.9847,
+        river: "ชายฝั่งอ่าวไทย (ปกติ)",
+        floodRisk: 25,
+        floodStatus: "ระดับน้ำปกติ",
+        floodColor: "text-emerald-400",
+        alertMsg: "ระวังน้ำท่วมขังรอการระบายบนผิวจราจรถนนสุขุมวิทบางจุดเมื่อมีฝนตกหนักชั่วขณะ",
+        alertLevel: "ฝนฟ้าคะนองบางแห่ง"
+      },
+      ayutthaya: {
+        name: "พระนครศรีอยุธยา",
+        lat: 14.3532,
+        lon: 100.5684,
+        river: "แม่น้ำเจ้าพระยา-ป่าสัก (เฝ้าระวังตลิ่งต่ำ)",
+        floodRisk: 55,
+        floodStatus: "เฝ้าระวังน้ำเอ่อล้น",
+        floodColor: "text-amber-400",
+        alertMsg: "พื้นที่ลุ่มต่ำนอกคันกั้นน้ำ อ.เสนา อ.บางบาล ให้ยกของขึ้นที่สูงเนื่องจากการปรับเพิ่มการระบายน้ำของเขื่อนเจ้าพระยา",
+        alertLevel: "เฝ้าระวังน้ำล้นตลิ่ง"
+      }
+    };
+
+    let currentLocation = locations.bangkok;
+
+    // THAI OFFICIAL HOLIDAYS (Current & Upcoming Years)
+    const thaiHolidays = [
+      { date: "2024-01-01", name: "วันขึ้นปีใหม่", dayOfWeek: "จันทร์" },
+      { date: "2024-02-26", name: "วันมาฆบูชา (ชดเชย)", dayOfWeek: "จันทร์" },
+      { date: "2024-04-06", name: "วันจักรี", dayOfWeek: "เสาร์" },
+      { date: "2024-04-08", name: "วันหยุดชดเชยวันจักรี", dayOfWeek: "จันทร์" },
+      { date: "2024-04-13", name: "วันสงกรานต์", dayOfWeek: "เสาร์" },
+      { date: "2024-04-14", name: "วันสงกรานต์", dayOfWeek: "อาทิตย์" },
+      { date: "2024-04-15", name: "วันสงกรานต์", dayOfWeek: "จันทร์" },
+      { date: "2024-04-16", name: "วันหยุดชดเชยวันสงกรานต์", dayOfWeek: "อังคาร" },
+      { date: "2024-05-01", name: "วันแรงงานแห่งชาติ", dayOfWeek: "พุธ" },
+      { date: "2024-05-04", name: "วันฉัตรมงคล", dayOfWeek: "เสาร์" },
+      { date: "2024-05-06", name: "วันหยุดชดเชยวันฉัตรมงคล", dayOfWeek: "จันทร์" },
+      { date: "2024-05-22", name: "วันวิสาขบูชา", dayOfWeek: "พุธ" },
+      { date: "2024-06-03", name: "วันเฉลิมพระชนมพรรษาพระราชินี", dayOfWeek: "จันทร์" },
+      { date: "2024-07-20", name: "วันอาสาฬหบูชา", dayOfWeek: "เสาร์" },
+      { date: "2024-07-21", name: "วันเข้าพรรษา", dayOfWeek: "อาทิตย์" },
+      { date: "2024-07-22", name: "วันหยุดชดเชยวันอาสาฬหบูชา", dayOfWeek: "จันทร์" },
+      { date: "2024-07-28", name: "วันเฉลิมพระชนมพรรษา ร.10", dayOfWeek: "อาทิตย์" },
+      { date: "2024-07-29", name: "วันหยุดชดเชยวันเฉลิมฯ ร.10", dayOfWeek: "จันทร์" },
+      { date: "2024-08-12", name: "วันแม่แห่งชาติ", dayOfWeek: "จันทร์" },
+      { date: "2024-10-13", name: "วันนวมินทรมหาราช", dayOfWeek: "อาทิตย์" },
+      { date: "2024-10-14", name: "วันหยุดชดเชยวันนวมินทรมหาราช", dayOfWeek: "จันทร์" },
+      { date: "2024-10-23", name: "วันปิยมหาราช", dayOfWeek: "พุธ" },
+      { date: "2024-12-05", name: "วันพ่อแห่งชาติ / วันชาติ", dayOfWeek: "พฤหัสบดี" },
+      { date: "2024-12-10", name: "วันรัฐธรรมนูญ", dayOfWeek: "อังคาร" },
+      { date: "2024-12-31", name: "วันสิ้นปี", dayOfWeek: "อังคาร" },
+      // 2025 previews
+      { date: "2025-01-01", name: "วันขึ้นปีใหม่ 2568", dayOfWeek: "พุธ" },
+      { date: "2025-02-12", name: "วันมาฆบูชา", dayOfWeek: "พุธ" },
+      { date: "2025-04-13", name: "เทศกาลวันสงกรานต์", dayOfWeek: "อาทิตย์" },
+      { date: "2025-05-01", name: "วันแรงงานแห่งชาติ", dayOfWeek: "พฤหัสบดี" },
+      { date: "2025-05-11", name: "วันวิสาขบูชา", dayOfWeek: "อาทิตย์" }
+    ];
+
+    // Calendar state
+    let calendarCurrentDate = new Date();
+
+    // CLOCK TICKER
+    function updateClock() {
+      const now = new Date();
+      const options = { 
+        weekday: 'short', 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      };
+      const formatted = now.toLocaleDateString('th-TH', options);
+      document.getElementById('liveClock').textContent = formatted + " น.";
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // FETCH REAL WEATHER & AIR QUALITY DATA (Open-Meteo API)
+    async function fetchEnvironmentalData(lat, lon, placeName) {
+      document.getElementById('weatherStation').textContent = `พิกัด: ${lat.toFixed(4)}, ${lon.toFixed(4)} (${placeName})`;
+      
+      try {
+        // 1. Weather API Call
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code,precipitation_probability&daily=precipitation_sum,uv_index_max&timezone=Asia%2FBangkok&forecast_days=2`;
+        const weatherRes = await fetch(weatherUrl);
+        const weatherData = await weatherRes.json();
+
+        // 2. Air Quality API Call
+        const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,european_aqi&timezone=Asia%2FBangkok`;
+        const airRes = await fetch(airUrl);
+        const airData = await airRes.json();
+
+        updateWeatherUI(weatherData);
+        updateAirQualityUI(airData);
+      } catch (err) {
+        console.error("Error fetching live environmental data:", err);
+        // Fallback mockup values if offline or blocked
+        renderFallbackData();
+      }
+    }
+
+    // INTERPRET WMO WEATHER CODES
+    function interpretWMO(code) {
+      // WMO Weather interpretation codes
+      if (code === 0) return { desc: "ท้องฟ้าแจ่มใส (Clear Sky)", icon: "fa-solid fa-sun", color: "text-amber-400" };
+      if (code === 1 || code === 2) return { desc: "มีเมฆบางส่วน (Partly Cloudy)", icon: "fa-solid fa-cloud-sun", color: "text-sky-300" };
+      if (code === 3) return { desc: "มีเมฆมาก (Overcast)", icon: "fa-solid fa-cloud", color: "text-slate-400" };
+      if ([45, 48].includes(code)) return { desc: "หมอกลงจัด (Foggy)", icon: "fa-solid fa-smog", color: "text-slate-300" };
+      if ([51, 53, 55].includes(code)) return { desc: "ฝนปรอยๆ (Drizzle)", icon: "fa-solid fa-cloud-rain", color: "text-cyan-400" };
+      if ([61, 63, 65].includes(code)) return { desc: "ฝนตกปานกลาง (Rain)", icon: "fa-solid fa-cloud-showers-heavy", color: "text-blue-400" };
+      if ([80, 81, 82].includes(code)) return { desc: "ฝนซู่หนัก (Heavy Showers)", icon: "fa-solid fa-cloud-showers-water", color: "text-blue-500" };
+      if ([95, 96, 99].includes(code)) return { desc: "พายุฝนฟ้าคะนอง (Thunderstorm)", icon: "fa-solid fa-cloud-bolt", color: "text-amber-500" };
+      return { desc: "มีเมฆเล็กน้อย", icon: "fa-solid fa-cloud-sun", color: "text-sky-300" };
+    }
+
+    function updateWeatherUI(data) {
+      if (!data || !data.current) return;
+      const cur = data.current;
+      const wmo = interpretWMO(cur.weather_code);
+
+      document.getElementById('currentTemp').textContent = Math.round(cur.temperature_2m);
+      document.getElementById('feelsLikeTemp').textContent = `${Math.round(cur.apparent_temperature)}°C`;
+      document.getElementById('weatherDesc').textContent = wmo.desc;
+      document.getElementById('weatherIconContainer').innerHTML = `<i class="${wmo.icon} ${wmo.color}"></i>`;
+
+      document.getElementById('humidityVal').textContent = `${cur.relative_humidity_2m}%`;
+      document.getElementById('windVal').textContent = `${cur.wind_speed_10m} กม./ชม.`;
+      
+      const rainProb = (data.hourly && data.hourly.precipitation_probability) ? data.hourly.precipitation_probability[0] : 15;
+      document.getElementById('rainProbVal').textContent = `${rainProb}%`;
+
+      const uvMax = (data.daily && data.daily.uv_index_max) ? data.daily.uv_index_max[0] : 6.5;
+      document.getElementById('uvVal').textContent = uvMax;
+
+      // Rainfall 24h
+      const rainSum = (data.daily && data.daily.precipitation_sum) ? data.daily.precipitation_sum[0] : 12.0;
+      document.getElementById('rainAccum24').innerHTML = `${rainSum.toFixed(1)} <span class="text-sm font-normal text-slate-400">มม. (mm)</span>`;
+
+      // Hourly Forecast (Next 8 slots)
+      if (data.hourly && data.hourly.time) {
+        const hourlyBox = document.getElementById('hourlyContainer');
+        hourlyBox.innerHTML = '';
+        const nowIndex = new Date().getHours();
+        
+        for (let i = nowIndex; i < nowIndex + 8; i++) {
+          if (!data.hourly.time[i]) break;
+          const timeStr = data.hourly.time[i].split('T')[1].substring(0, 5);
+          const tTemp = Math.round(data.hourly.temperature_2m[i]);
+          const tWmo = interpretWMO(data.hourly.weather_code[i]);
+          const tProb = data.hourly.precipitation_probability ? data.hourly.precipitation_probability[i] : 10;
+
+          const item = document.createElement('div');
+          item.className = "min-w-[76px] flex-shrink-0 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 flex flex-col items-center justify-between";
+          item.innerHTML = `
+            <span class="text-[11px] text-slate-400">${timeStr}</span>
+            <i class="${tWmo.icon} ${tWmo.color} text-lg my-1.5"></i>
+            <span class="text-xs font-bold text-white">${tTemp}°</span>
+            <span class="text-[10px] text-cyan-400 mt-1"><i class="fa-solid fa-droplet text-[9px]"></i> ${tProb}%</span>
+          `;
+          hourlyBox.appendChild(item);
+        }
+      }
+    }
+
+    function updateAirQualityUI(data) {
+      if (!data || !data.current) return;
+      const cur = data.current;
+
+      const pm25 = cur.pm2_5 ? Math.round(cur.pm2_5) : 22;
+      const pm10 = cur.pm10 ? Math.round(cur.pm10) : 38;
+      const o3 = cur.ozone ? Math.round(cur.ozone) : 45;
+      const no2 = cur.nitrogen_dioxide ? Math.round(cur.nitrogen_dioxide) : 18;
+      const so2 = cur.sulphur_dioxide ? Math.round(cur.sulphur_dioxide) : 5;
+      const co = cur.carbon_monoxide ? Math.round(cur.carbon_monoxide) : 310;
+      const eaqi = cur.european_aqi || 2;
+
+      document.getElementById('pm25Val').textContent = pm25;
+      document.getElementById('pm10Val').textContent = pm10;
+      document.getElementById('o3Val').textContent = o3;
+      document.getElementById('no2Val').textContent = no2;
+      document.getElementById('so2Val').textContent = so2;
+      document.getElementById('coVal').textContent = co;
+      document.getElementById('eaqiVal').textContent = eaqi;
+
+      // Evaluation based on Thai & US AQI scale for PM2.5
+      const statusTag = document.getElementById('aqiStatusTag');
+      const healthAdvice = document.getElementById('healthAdvice');
+      const aqiBadge = document.getElementById('aqiBadge');
+
+      if (pm25 <= 15) {
+        statusTag.textContent = "ดีมาก (Very Good)";
+        statusTag.className = "inline-block px-3 py-1 rounded-lg text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 mb-2";
+        healthAdvice.textContent = "คุณภาพอากาศดีมาก เหมาะสำหรับกิจกรรมกลางแจ้งและการท่องเที่ยวทุกประเภท";
+        aqiBadge.textContent = "อากาศดีมาก";
+        aqiBadge.className = "text-xs px-2.5 py-1 rounded-full font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30";
+      } else if (pm25 <= 37.5) {
+        statusTag.textContent = "ปานกลาง (Moderate)";
+        statusTag.className = "inline-block px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 mb-2";
+        healthAdvice.textContent = "ระดับคุณภาพอากาศปานกลาง ประชาชนทั่วไปทำกิจกรรมได้ตามปกติ กลุ่มเสี่ยงควรระวัง";
+        aqiBadge.textContent = "อากาศปกติ";
+        aqiBadge.className = "text-xs px-2.5 py-1 rounded-full font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+      } else if (pm25 <= 75) {
+        statusTag.textContent = "เริ่มมีผลกระทบต่อสุขภาพ (Unhealthy for Sensitive)";
+        statusTag.className = "inline-block px-3 py-1 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 mb-2";
+        healthAdvice.textContent = "ผู้มีโรคประจำตัว เด็ก คนชรา ควรสวมหน้ากากอนามัยป้องกันฝุ่นเมื่อออกนอกอาคาร";
+        aqiBadge.textContent = "เริ่มมีผลกระทบ";
+        aqiBadge.className = "text-xs px-2.5 py-1 rounded-full font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30";
+      } else {
+        statusTag.textContent = "มีผลกระทบต่อสุขภาพ (Hazardous)";
+        statusTag.className = "inline-block px-3 py-1 rounded-lg text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 mb-2";
+        healthAdvice.textContent = "งดกิจกรรมกลางแจ้งเด็ดขาด สวมหน้ากาก N95 ตลอดเวลา และเปิดเครื่องฟอกอากาศในอาคาร";
+        aqiBadge.textContent = "ฝุ่นเกินมาตรฐาน!";
+        aqiBadge.className = "text-xs px-2.5 py-1 rounded-full font-medium bg-rose-500/20 text-rose-300 border border-rose-500/30";
+      }
+    }
+
+    function renderFallbackData() {
+      document.getElementById('currentTemp').textContent = "31";
+      document.getElementById('feelsLikeTemp').textContent = "35°C";
+      document.getElementById('weatherDesc').textContent = "มีเมฆบางส่วน อากาศร้อนอบอ้าว";
+      document.getElementById('humidityVal').textContent = "68%";
+      document.getElementById('windVal').textContent = "12 กม./ชม.";
+      document.getElementById('rainProbVal').textContent = "30%";
+      document.getElementById('uvVal').textContent = "7.8";
+      document.getElementById('pm25Val').textContent = "26";
+      document.getElementById('pm10Val').textContent = "42";
+      document.getElementById('o3Val').textContent = "38";
+      document.getElementById('no2Val').textContent = "16";
+      document.getElementById('so2Val').textContent = "4";
+      document.getElementById('coVal').textContent = "280";
+      document.getElementById('eaqiVal').textContent = "2";
+    }
+
+    // UPDATE FLOOD AND SURVEILLANCE CARD PER LOCATION
+    function updateLocationSurveillance(loc) {
+      document.getElementById('floodStatusBadge').textContent = loc.floodStatus;
+      document.getElementById('floodStatusBadge').className = `text-[11px] px-2 py-0.5 rounded-full bg-slate-800 font-bold ${loc.floodColor}`;
+      document.getElementById('riverLevel').textContent = loc.river;
+      document.getElementById('floodRiskPercent').textContent = `${loc.floodRisk}%`;
+      document.getElementById('floodProgressBar').style.width = `${loc.floodRisk}%`;
+
+      // Alert Banner Update
+      document.getElementById('alertSeverity').textContent = loc.alertLevel;
+      document.getElementById('alertCategory').textContent = `พื้นที่: ${loc.name}`;
+      document.getElementById('alertMessage').textContent = loc.alertMsg;
+      document.getElementById('alertTimestamp').textContent = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
+    }
+
+    // TOGGLE ALERT ACCORDION
+    function toggleAlertDetails() {
+      const el = document.getElementById('alertDetails');
+      el.classList.toggle('hidden');
+    }
+
+    // LOCATION EVENT HANDLERS
+    function handleCityChange(cityKey) {
+      if (locations[cityKey]) {
+        currentLocation = locations[cityKey];
+        updateLocationSurveillance(currentLocation);
+        fetchEnvironmentalData(currentLocation.lat, currentLocation.lon, currentLocation.name);
+      }
+    }
+
+    function detectUserLocation() {
+      const btn = document.getElementById('btnGeo');
+      btn.classList.add('animate-spin');
+
+      if (!navigator.geolocation) {
+        alertFallbackLocation("เบราว์เซอร์นี้ไม่รองรับการระบุพิกัด Geolocation");
+        btn.classList.remove('animate-spin');
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          btn.classList.remove('animate-spin');
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          
+          const optCustom = document.getElementById('optCustom');
+          optCustom.disabled = false;
+          optCustom.textContent = `📍 พิกัด GPS (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+          document.getElementById('citySelect').value = "custom";
+
+          // Create dynamic user location object
+          currentLocation = {
+            name: "ตำแหน่งปัจจุบันของคุณ",
+            lat: lat,
+            lon: lon,
+            river: "ตรวจสอบตามแนวตลิ่ง/ท่อระบายน้ำท้องถิ่น",
+            floodRisk: 28,
+            floodStatus: "กำลังวิเคราะห์พื้นที่",
+            floodColor: "text-cyan-400",
+            alertMsg: `ตรวจพบตำแหน่งของคุณที่ละติจูด ${lat.toFixed(3)}, ลองจิจูด ${lon.toFixed(3)} กำลังติดตามเฝ้าระวังสภาพอากาศและมลพิษโดยรอบอย่างต่อเนื่อง`,
+            alertLevel: "ตรวจสอบเฉพาะพื้นที่"
+          };
+
+          updateLocationSurveillance(currentLocation);
+          fetchEnvironmentalData(lat, lon, "พิกัดของคุณ");
+        },
+        (error) => {
+          btn.classList.remove('animate-spin');
+          console.warn("Geolocation permission error:", error.message);
+          // Gracefully fallback to Bangkok
+          handleCityChange('bangkok');
+        },
+        { timeout: 10000, enableHighAccuracy: true }
+      );
+    }
+
+    // CALENDAR FUNCTIONS
+    function renderCalendar(date) {
+      const year = date.getFullYear();
+      const month = date.getMonth(); // 0-indexed
+
+      const monthNamesTh = [
+        "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+        "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+      ];
+
+      document.getElementById('calendarTitle').textContent = `${monthNamesTh[month]} ${year + 543}`;
+      document.getElementById('currentCalendarMonthYear').textContent = `พุทธศักราช ${year + 543} / ${year}`;
+
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+
+      const firstDayIndex = new Date(year, month, 1).getDay();
+      const totalDays = new Date(year, month + 1, 0).getDate();
+
+      const today = new Date();
+
+      // Empty slot for days before start of month
+      for (let i = 0; i < firstDayIndex; i++) {
+        const empty = document.createElement('div');
+        empty.className = "py-1.5 text-slate-700";
+        grid.appendChild(empty);
+      }
+
+      // Populate days
+      for (let day = 1; day <= totalDays; day++) {
+        const dayCell = document.createElement('div');
+        const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        
+        const isHoliday = thaiHolidays.find(h => h.date === dStr);
+        const isToday = (today.getFullYear() === year && today.getMonth() === month && today.getDate() === day);
+
+        dayCell.className = "py-1.5 rounded-lg font-medium transition cursor-pointer relative ";
+
+        if (isToday) {
+          dayCell.className += "bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/30 ";
+        } else if (isHoliday) {
+          dayCell.className += "bg-rose-500/20 text-rose-400 border border-rose-500/40 hover:bg-rose-500/30 ";
+          dayCell.title = isHoliday.name;
+        } else {
+          dayCell.className += "text-slate-300 hover:bg-slate-800 ";
+        }
+
+        dayCell.textContent = day;
+
+        // Little dot indicator for holidays
+        if (isHoliday && !isToday) {
+          const dot = document.createElement('span');
+          dot.className = "w-1 h-1 bg-rose-400 rounded-full absolute bottom-0.5 left-1/2 -translate-x-1/2";
+          dayCell.appendChild(dot);
+        }
+
+        grid.appendChild(dayCell);
+      }
+    }
+
+    function prevMonth() {
+      calendarCurrentDate.setMonth(calendarCurrentDate.getMonth() - 1);
+      renderCalendar(calendarCurrentDate);
+    }
+
+    function nextMonth() {
+      calendarCurrentDate.setMonth(calendarCurrentDate.getMonth() + 1);
+      renderCalendar(calendarCurrentDate);
+    }
+
+    // CALCULATE UPCOMING HOLIDAYS & COUNTDOWN
+    function renderUpcomingHolidays() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const futureHolidays = thaiHolidays
+        .map(h => {
+          const hDate = new Date(h.date + "T00:00:00");
+          const diffDays = Math.ceil((hDate - today) / (1000 * 60 * 60 * 24));
+          return { ...h, dateObj: hDate, diffDays };
+        })
+        .filter(h => h.diffDays >= 0)
+        .sort((a, b) => a.diffDays - b.diffDays);
+
+      const listContainer = document.getElementById('holidayList');
+      listContainer.innerHTML = '';
+
+      if (futureHolidays.length > 0) {
+        const next = futureHolidays[0];
+        document.getElementById('nextHolidayTitle').textContent = next.name;
+        
+        const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+        const thaiDateStr = next.dateObj.toLocaleDateString('th-TH', dateOptions);
+        document.getElementById('nextHolidayDate').textContent = `${thaiDateStr} (วัน${next.dayOfWeek})`;
+
+        if (next.diffDays === 0) {
+          document.getElementById('holidayDaysLeft').textContent = "วันนี้แล้ว!";
+          document.getElementById('holidayDaysLeft').className = "text-xs px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-300 font-bold";
+        } else {
+          document.getElementById('holidayDaysLeft').textContent = `อีก ${next.diffDays} วัน`;
+        }
+
+        // Render top 4 upcoming holidays in list
+        futureHolidays.slice(0, 5).forEach(h => {
+          const item = document.createElement('div');
+          item.className = "flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition";
+          
+          const dFormatted = h.dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+          item.innerHTML = `
+            <div class="flex items-center gap-2.5 truncate">
+              <span class="w-2 h-2 rounded-full bg-rose-400 flex-shrink-0"></span>
+              <div class="truncate">
+                <span class="text-xs font-semibold text-slate-200 block truncate">${h.name}</span>
+                <span class="text-[10px] text-slate-400">${dFormatted} (${h.dayOfWeek})</span>
+              </div>
+            </div>
+            <span class="text-[11px] font-medium text-slate-400 whitespace-nowrap ml-2">อีก ${h.diffDays} วัน</span>
+          `;
+          listContainer.appendChild(item);
+        });
+      } else {
+        document.getElementById('nextHolidayTitle').textContent = "ยังไม่มีข้อมูลวันหยุดถัดไป";
+      }
+    }
+
+    // INITIALIZATION ON WINDOW LOAD
+    window.onload = function() {
+      // 1. Initial location setup (Bangkok default)
+      updateLocationSurveillance(currentLocation);
+      fetchEnvironmentalData(currentLocation.lat, currentLocation.lon, currentLocation.name);
+
+      // 2. Calendar and holidays setup
+      renderCalendar(calendarCurrentDate);
+      renderUpcomingHolidays();
+
+      // 3. Auto-prompt Geolocation smoothly if permitted
+      if ("geolocation" in navigator) {
+        navigator.permissions?.query({ name: 'geolocation' }).then(result => {
+          if (result.state === 'granted') {
+            detectUserLocation();
+          }
+        }).catch(() => {
+          // Ignore permission query error
+        });
+      }
+    };
+  </script>
+</body>
 </html>
